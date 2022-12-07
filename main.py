@@ -89,15 +89,14 @@ def extract_subs(video_path: str) -> str:
         index = result["streams"][0]["index"]
     else:
         # Allow the user to pick the correct stream if there are more than one streams
-        # Possibly might not work?
         print("Multiple streams detected! Requiring manual user input...")
 
         stream_prompts = []
 
         for stream in result["streams"]:
-            stream_prompts.append("Index: {}\nCodec Name: {}".format(stream["index"], stream["codec_name"]))
+            stream_prompts.append("Index: {}\nCodec Name: {}\nTags: {}".format(stream["index"], stream["codec_name"], stream["tags"]))
 
-        index = result["streams"][prompt_choices(stream_prompts, "Pick the correct stream")]["index"]
+        index = result["streams"][prompt_choices(stream_prompts, "Pick the correct stream") - 1]["index"]
 
     stream = streams[index]
     codec_name = stream["codec_name"]
@@ -193,7 +192,9 @@ elif amount_choice == 2:
 
         exit()
 
-warning_choice = prompt_choices(["Yes", "No"], "WARNING: This program will remove any styling from provided subtitle files, and convert your existing subtitles to .srt files.\nDo you still wish to continue")
+warning_choice = prompt_choices(["Yes", "No"], "WARNING: This program will remove any styling from provided subtitle files, and convert your existing subtitles to .srt files.\nDo you still wish to continue?")
+
+embed_choice = prompt_choices(["ffmpeg, mkvtoolnix"], "Due to a strange issue with ffmpeg, you can have the option to use mkvmerge instead of ffmpeg if it somehow fails.\nWhich one would you like to use?")
 
 if warning_choice == 1:
     print("Extracting subtitles from provided video(s)...")
@@ -264,7 +265,7 @@ if warning_choice == 1:
     for index in range(len(video_paths)):
         retimed_path = provided_converted_paths[index].replace(subtitle_path[len(subtitle_path) - 4:], ".RETIMED.srt")
 
-        subprocess.run(["alass", converted_paths[index], provided_converted_paths[index], retimed_path])
+        subprocess.run(["alass-cli", converted_paths[index], provided_converted_paths[index], retimed_path])
 
         retimed_paths.append(retimed_path)
 
@@ -272,7 +273,10 @@ if warning_choice == 1:
 
     # Embed the subtitles into the video using ffmpeg
     for index in range(len(video_paths)):
-        subprocess.run(["ffmpeg", "-i", video_paths[index], "-i", retimed_paths[index], "-map", "0:0", "-map", "0:1", "-map", "1:0", "-c:v", "copy", "-c:a", "copy", "-c:s", "srt", video_paths[index].replace(".mkv", ".jp.mkv")])
+        if embed_choice == 1:
+            subprocess.run(["ffmpeg", "-i", video_paths[index], "-i", retimed_paths[index], "-map", "0:0", "-map", "0:1", "-map", "1:0", "-c:v", "copy", "-c:a", "copy", "-c:s", "srt", video_paths[index].replace(".mkv", ".jp.mkv")])
+        else:
+            subprocess.run(["mkvmerge", "-o", video_paths[index].replace(".mkv", ".jp.mkv"), video_paths[index], retimed_paths[index]])
 
     clean_choice = prompt_choices(["Yes", "No"], "Done! Would you like to clean up?")
 
